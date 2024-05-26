@@ -13,7 +13,11 @@ class AuthController extends Controller
 {
     function register(Request $request)
     {
-        // Validate the request
+        $request->validate([
+            'fullName' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+        ]);
 
         $user = User::create([
             'full_name' => $request->input('fullName'),
@@ -21,11 +25,23 @@ class AuthController extends Controller
             'password' => Hash::make($request->input('password'))
         ]);
 
-        return $user;
+        $response = [
+            'token' => $user->createToken('token')->plainTextToken,
+            'user' => $user
+        ];
+
+        $cookie = cookie('jwt', $response['token'], 60*24);
+
+        return response($response)->withCookie($cookie);
     }
 
     function login(Request $request)
     {
+        $request->validate([
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string|min:8',
+        ]);
+
         if (!Auth::attempt($request->only('email', 'password'))) {
             return response([
                 'message' => 'Invalid credentials!'
@@ -34,16 +50,17 @@ class AuthController extends Controller
 
         $user = Auth::user();
 
-        $token = $user->createToken('token')->plainTextToken;
+        $response = [
+            'token' => $user->createToken('token')->plainTextToken,
+            'user' => $user
+        ];
 
-        $cookie = cookie('jwt', $token, 60*24);
+        $cookie = cookie('jwt', $response['token'], 60*24);
 
-        return response([
-            'message' => $token
-        ])->withCookie($cookie);
+        return response($response)->withCookie($cookie);
     }
 
-    function getuser(Request $request)
+    function getUser(Request $request)
     {
         $user = $request->user();
 
